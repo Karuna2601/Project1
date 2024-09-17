@@ -1,0 +1,72 @@
+#!/bin/bash
+
+# Define paths and files
+
+INSTALL_PATH="/opt/tenable-agent"  # Modify this path according to your system
+VERSION_FILE="/tmp/tenable_version.txt"
+LOG_FILE="/tmp/tenable_update_log.txt"
+
+# Function to fetch the latest version from Tenable's website
+get_latest_version() {
+    # This is a placeholder. You will need to adjust this command
+    # according to the way Tenable publishes their latest version information.
+    # For example, using curl or wget to scrape the latest version:
+    LATEST_VERSION=$(curl -s https://www.tenable.com/downloads/tenable-agent | grep -oP 'Tenable Agent \K[\d.]+')
+    echo "$LATEST_VERSION"
+}
+
+# Function to check the installed version
+get_installed_version() {
+    if [ -f "$INSTALL_PATH/bin/Agent" ]; then
+        INSTALLED_VERSION=$("$INSTALL_PATH/bin/Agent" --version | grep -oP '\d+(\.\d+)+')
+        echo "$INSTALLED_VERSION"
+    else
+        echo "Tenable Agent is not installed."
+        exit 1
+    fi
+}
+
+# Log the result to a file
+log_update_result() {
+    echo "$(date): $1" >> "$LOG_FILE"
+}
+
+# Check if Tenable agent is installed
+if [ -d "$INSTALL_PATH" ]; then
+    echo "Tenable Agent is installed at $INSTALL_PATH."
+else
+    echo "Tenable Agent is not installed."
+    exit 1
+fi
+
+# Get the installed version
+INSTALLED_VERSION=$(get_installed_version)
+echo "Installed Tenable Agent version: $INSTALLED_VERSION"
+
+# Get the latest version from Tenable's website
+LATEST_VERSION=$(get_latest_version)
+echo "Latest Tenable Agent version: $LATEST_VERSION"
+
+# Compare versions
+if [ "$INSTALLED_VERSION" != "$LATEST_VERSION" ]; then
+    echo "Updating Tenable Agent from version $INSTALLED_VERSION to $LATEST_VERSION..."
+
+    # Command to download the latest Tenable agent
+    DOWNLOAD_URL="https://www.tenable.com/downloads/tenable-agent/${LATEST_VERSION}/tenable-agent.deb"
+    wget -q "$DOWNLOAD_URL" -O /tmp/tenable-agent.deb
+
+    # Install the new version (assumes it's a .deb package, modify if needed)
+    sudo dpkg -i /tmp/tenable-agent.deb
+
+    # Verify the update
+    NEW_INSTALLED_VERSION=$(get_installed_version)
+    if [ "$NEW_INSTALLED_VERSION" == "$LATEST_VERSION" ]; then
+        echo "Update successful! Tenable Agent is now at version $NEW_INSTALLED_VERSION."
+        log_update_result "Tenable Agent updated to version $NEW_INSTALLED_VERSION."
+    else
+        echo "Update failed!"
+        log_update_result "Tenable Agent update failed. Installed version is still $INSTALLED_VERSION."
+    fi
+else
+    echo "Tenable Agent is already up to date (version $INSTALLED_VERSION)."
+fi
